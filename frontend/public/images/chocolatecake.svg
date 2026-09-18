@@ -1,0 +1,21 @@
+﻿<svg width="600" height="450" viewBox="0 0 600 450" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F5F3FF"/>
+      <stop offset="1" stop-color="#C4B5FD"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="450" fill="url(#bg)"/>
+  <ellipse cx="300" cy="420" rx="200" ry="22" fill="#00000018"/>
+  <path d="M170 300 L190 180 Q290 140 390 180 L410 300 Z" fill="#D9A066"/>
+  <path d="M190 180 Q290 150 390 180 L386 206 Q290 176 194 206 Z" fill="#F3CFA6"/>
+  <path d="M180 260 Q290 222 400 260 L408 296 Q290 258 172 296 Z" fill="#7C3F14"/>
+  <path d="M174 296 L410 296 L420 360 L164 360 Z" fill="#92400E"/>
+  <path d="M170 360 L160 310 L180 305 L188 358 Z" fill="#92400E"/>
+  <path d="M414 362 L416 312 L398 308 L392 358 Z" fill="#92400E"/>
+  <circle cx="246" cy="236" r="14" fill="#7F1D1D"/>
+  <circle cx="310" cy="222" r="14" fill="#7F1D1D"/>
+  <circle cx="368" cy="238" r="14" fill="#7F1D1D"/>
+  <circle cx="300" cy="330" r="6" fill="#FDE047"/>
+  <path d="M300 324 L312 330 L300 336 L288 330 Z" fill="#FDE047"/>
+</svg>

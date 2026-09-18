@@ -1,0 +1,15 @@
+{
+  "name": "foodpos",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
+    "build": "npm run build --prefix frontend && npm run build --prefix backend",
+    "vercel-build": "node scripts/prepare-prod-db.js && npm run build --prefix backend && npm run build --prefix frontend",
+    "install:all": "npm install --prefix frontend && npm install --prefix backend",
+    "prepare:prod-db": "node scripts/prepare-prod-db.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

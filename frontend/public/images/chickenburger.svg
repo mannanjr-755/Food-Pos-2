@@ -1,0 +1,20 @@
+﻿<svg width="600" height="450" viewBox="0 0 600 450" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FEF3C7"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="450" fill="url(#bg)"/>
+  <ellipse cx="300" cy="420" rx="200" ry="22" fill="#00000018"/>
+  <path d="M130 250 Q140 140 300 140 Q460 140 470 250 Z" fill="#F5C069"/>
+  <path d="M148 150 L160 120 Q300 90 440 120 L452 150 Q310 135 148 150 Z" fill="#DC9A3E"/>
+  <circle cx="220" cy="158" r="8" fill="#FFF6DE"/>
+  <circle cx="380" cy="158" r="8" fill="#FFF6DE"/>
+  <rect x="140" y="250" width="320" height="26" rx="6" fill="#8B5A2B"/>
+  <rect x="138" y="276" width="324" height="26" rx="6" fill="#C9A227"/>
+  <path d="M155 302 Q300 268 445 302 L440 322 Q300 292 160 322 Z" fill="#E8B24A"/>
+  <path d="M160 316 L240 312 L240 336 L162 338 L160 316 Z" fill="#9ACD32"/>
+  <path d="M360 312 L440 316 L438 338 L360 336 Z" fill="#9ACD32"/>
+  <path d="M140 350 Q300 372 460 350 L456 372 Q300 400 144 372 Z" fill="#F5C069"/>
+</svg>
