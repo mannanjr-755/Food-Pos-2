@@ -1,0 +1,10 @@
+node_modules
+dist
+.env
+.env.*
+!tsconfig.json
+*.db
+*.db-journal
+*.map
+*.log
+.git

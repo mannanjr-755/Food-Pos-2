@@ -11,3 +11,5 @@ frontend/vite.config.d.ts
 backend/prisma/seed.js
 backend/prisma/*.map
 .vercel
+
+.vercel
