@@ -1,15 +1,35 @@
+# Dependencies
 node_modules/
-dist/
-.env
-*.log
-.DS_Store
-*.tsbuildinfo
-frontend/vite.config.js
-frontend/vite.config.d.ts
-*.db
-*.db-journal
-backend/prisma/seed.js
-backend/prisma/*.map
-.vercel
 
-.vercel
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Build / cache
+dist/
+build/
+.cache/
+.vite/
+coverage/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Uploads (keep folder, ignore contents)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Backend logs (keep folder, ignore contents)
+backend/logs/*
+!backend/logs/.gitkeep
