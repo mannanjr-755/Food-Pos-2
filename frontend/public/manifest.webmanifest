@@ -1,0 +1,18 @@
+{
+  "name": "Chaska Koyla Karahi POS",
+  "short_name": "Chaska POS",
+  "description": "Offline-capable restaurant point of sale",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7FAF8",
+  "theme_color": "#0F5C3A",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

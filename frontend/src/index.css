@@ -223,11 +223,14 @@ input[type="number"] {
   #receipt-print,
   #receipt-print *,
   #kot-print,
-  #kot-print * {
+  #kot-print *,
+  #combined-print,
+  #combined-print * {
     visibility: visible !important;
   }
   #receipt-print,
-  #kot-print {
+  #kot-print,
+  #combined-print {
     position: absolute;
     left: 0;
     top: 0;
@@ -240,6 +243,10 @@ input[type="number"] {
     color: #111 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  #combined-print,
+  #combined-print * {
+    visibility: visible !important;
   }
 
   #qr-print {

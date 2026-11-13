@@ -23,9 +23,13 @@ export function getToken() {
   return readAuth()?.token || null
 }
 
+const rawBase = String(import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+const baseURL = /\/api\/v1$/.test(rawBase) ? rawBase : `${rawBase}/api/v1`
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 20000,
 })
 
 api.interceptors.request.use((config) => {

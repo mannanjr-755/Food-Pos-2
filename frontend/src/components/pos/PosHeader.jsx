@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { History, Settings, LogOut, Printer, ChevronDown } from 'lucide-react'
+import { History, Settings, LogOut, Printer, ChevronDown, Wifi, WifiOff } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOffline } from '../../contexts/OfflineContext'
 import { ChaskaMark, BRAND_NAME } from '../ui/Logo'
 import { currencySymbol } from '../../utils/formatCurrency'
 
-export default function PosHeader({ itemCount = 0, onOpenCart }) {
+export default function PosHeader({ itemCount = 0, onOpenCart, online: onlineProp }) {
   const { user, logout } = useAuth()
+  const { online: onlineCtx, pending } = useOffline()
+  const online = onlineProp ?? onlineCtx
   const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef(null)
@@ -45,6 +48,18 @@ export default function PosHeader({ itemCount = 0, onOpenCart }) {
         </div>
 
         <nav className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              online
+                ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15'
+                : 'bg-amber-50 text-amber-800 ring-1 ring-amber-600/20'
+            }`}
+          >
+            {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+            {online ? 'Online' : 'Offline'}
+            {pending > 0 ? ` · ${pending} queued` : ''}
+          </span>
+
           <button type="button" className="pos-nav-btn" onClick={() => navigate('/history')}>
             <History className="h-4 w-4 text-lex-gold" />
             <span className="hidden sm:inline">History</span>

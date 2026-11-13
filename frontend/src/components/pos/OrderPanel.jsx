@@ -12,10 +12,6 @@ export default function OrderPanel({
   setOrderType,
   table,
   setTable,
-  discountRs,
-  setDiscountRs,
-  discountPct,
-  setDiscountPct,
   onClear,
   onQty,
   onRemove,
@@ -144,31 +140,9 @@ export default function OrderPanel({
         )}
 
         {!empty && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-lex-muted">Discount (%)</label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={discountPct}
-                onChange={(e) => setDiscountPct(e.target.value)}
-                placeholder="0"
-                className="lex-input py-2"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-lex-muted">Discount (Rs.)</label>
-              <input
-                type="number"
-                min="0"
-                value={discountRs}
-                onChange={(e) => setDiscountRs(e.target.value)}
-                placeholder="0"
-                className="lex-input py-2"
-              />
-            </div>
-          </div>
+          <p className="mt-3 rounded-xl bg-lex-800 px-3 py-2 text-xs text-lex-muted">
+            Discounts, payment and waiter are set on the next screen.
+          </p>
         )}
       </div>
 
@@ -178,18 +152,12 @@ export default function OrderPanel({
             <span>Subtotal</span>
             <span className="tabular-nums text-lex-ink">{formatCurrency(totals.subtotal)}</span>
           </div>
-          {totals.discount > 0 && (
-            <div className="flex justify-between text-lex-muted">
-              <span>Discount</span>
-              <span className="tabular-nums text-lex-ink">-{formatCurrency(totals.discount)}</span>
-            </div>
-          )}
           <div className="flex justify-between text-lex-muted">
             <span>Tax ({taxRate}%)</span>
             <span className="tabular-nums text-lex-ink">{formatCurrency(totals.tax)}</span>
           </div>
           <div className="mt-1 flex items-end justify-between border-t border-dashed border-lex-700 pt-2">
-            <span className="text-lg font-bold text-lex-ink">Total</span>
+            <span className="text-lg font-bold text-lex-ink">Subtotal + tax</span>
             <span className="text-2xl font-extrabold tabular-nums text-lex-gold">{formatCurrency(totals.total)}</span>
           </div>
         </div>
@@ -200,7 +168,7 @@ export default function OrderPanel({
           disabled={empty}
           className="lex-btn-primary mt-3 w-full py-3.5 text-base disabled:opacity-40"
         >
-          Checkout
+          Checkout – Bill & KOT
         </button>
       </div>
     </div>

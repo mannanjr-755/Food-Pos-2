@@ -15,15 +15,16 @@ import toast from 'react-hot-toast'
 import api, { apiErrorMessage } from '../services/api'
 import { useSettings } from '../contexts/SettingsContext'
 import { useRealtime } from '../contexts/RealtimeContext'
+import { useOffline } from '../contexts/OfflineContext'
 import EmptyState from '../components/ui/EmptyState'
 import { CardSkeletonGrid } from '../components/ui/Skeletons'
 import ProductCard from '../components/pos/ProductCard'
 import OrderPanel from '../components/pos/OrderPanel'
-import ReceiptModal from '../components/pos/ReceiptModal'
-import KotPrint from '../components/pos/KotPrint'
 import SizePickerModal from '../components/pos/SizePickerModal'
 import CheckoutModal from '../components/pos/CheckoutModal'
+import CombinedPrint from '../components/pos/CombinedPrint'
 import PosHeader from '../components/pos/PosHeader'
+import { cacheCatalog, readCachedCatalog, saveLocalSale } from '../offline/syncEngine'
 import { readPrinterSettings } from '../utils/printerSettings'
 
 const genKey = () =>
@@ -50,6 +51,7 @@ function sizePrice(base, size) {
 
 export default function POS() {
   const { taxRate } = useSettings()
+  const { online, refreshPending, runSync } = useOffline()
 
   const [catalog, setCatalog] = useState({ categories: [], products: [] })
   const [loadingCatalog, setLoadingCatalog] = useState(true)
@@ -59,26 +61,36 @@ export default function POS() {
   const [cart, setCart] = useState([])
   const [orderType, setOrderType] = useState('Dine In')
   const [table, setTable] = useState('')
-  const [discountRs, setDiscountRs] = useState('')
-  const [discountPct, setDiscountPct] = useState('')
 
   const [cartOpen, setCartOpen] = useState(false)
   const [sizeProduct, setSizeProduct] = useState(null)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [checkoutKey, setCheckoutKey] = useState(null)
-  const [savedOrder, setSavedOrder] = useState(null)
-  const [billOrder, setBillOrder] = useState(null)
-  const [kotOrder, setKotOrder] = useState(null)
+  const [printOrder, setPrintOrder] = useState(null)
 
-  const loadCatalog = useCallback(() => {
-    setLoadingCatalog(true)
-    api
-      .get('/pos/products')
-      .then(({ data }) => setCatalog({ categories: data.categories || [], products: data.products || [] }))
-      .catch((err) => toast.error(apiErrorMessage(err, 'Could not load products')))
-      .finally(() => setLoadingCatalog(false))
+  const applyCatalog = useCallback((data) => {
+    setCatalog({ categories: data.categories || [], products: data.products || [] })
   }, [])
+
+  const loadCatalog = useCallback(async () => {
+    setLoadingCatalog(true)
+    try {
+      const { data } = await api.get('/pos/products')
+      applyCatalog(data)
+      await cacheCatalog(data)
+    } catch (err) {
+      const cached = await readCachedCatalog()
+      if (cached) {
+        applyCatalog(cached)
+        toast('Using offline product catalog', { icon: '📴' })
+      } else {
+        toast.error(apiErrorMessage(err, 'Could not load products'))
+      }
+    } finally {
+      setLoadingCatalog(false)
+    }
+  }, [applyCatalog])
 
   useEffect(() => {
     loadCatalog()
@@ -90,10 +102,13 @@ export default function POS() {
       subscribeCatalog(() => {
         api
           .get('/pos/products')
-          .then(({ data }) => setCatalog({ categories: data.categories || [], products: data.products || [] }))
+          .then(async ({ data }) => {
+            applyCatalog(data)
+            await cacheCatalog(data)
+          })
           .catch(() => {})
       }),
-    [subscribeCatalog]
+    [subscribeCatalog, applyCatalog]
   )
 
   useEffect(() => {
@@ -118,21 +133,17 @@ export default function POS() {
     })
   }, [catalog.products, activeCategory, query])
 
-  const totals = useMemo(() => {
+  const previewTotals = useMemo(() => {
     const subtotal = cart.reduce((s, l) => s + l.price * l.quantity, 0)
-    const pct = Math.min(Math.max(Number(discountPct) || 0, 0), 100)
-    const fromPct = subtotal * (pct / 100)
-    const flat = Math.max(Number(discountRs) || 0, 0)
-    const discount = Math.min(fromPct + flat, subtotal)
-    const tax = (subtotal - discount) * (taxRate / 100)
-    const total = subtotal - discount + tax
+    const tax = subtotal * (taxRate / 100)
+    const total = subtotal + tax
     return {
       subtotal: Math.round(subtotal * 100) / 100,
-      discount: Math.round(discount * 100) / 100,
+      discount: 0,
       tax: Math.round(tax * 100) / 100,
       total: Math.round(total * 100) / 100,
     }
-  }, [cart, discountRs, discountPct, taxRate])
+  }, [cart, taxRate])
 
   const itemCount = cart.reduce((s, l) => s + l.quantity, 0)
 
@@ -193,10 +204,7 @@ export default function POS() {
   const clearCart = useCallback(() => {
     setCart([])
     setTable('')
-    setDiscountRs('')
-    setDiscountPct('')
     setOrderType('Dine In')
-    setSavedOrder(null)
     setCheckoutKey(null)
   }, [])
 
@@ -209,7 +217,25 @@ export default function POS() {
     setCheckoutOpen(true)
   }
 
-  const persistSale = async ({ waiter, amountPaid, printType }) => {
+  const applyLocalStock = (lines) => {
+    setCatalog((prev) => ({
+      ...prev,
+      products: prev.products.map((p) => {
+        const used = lines
+          .filter((l) => String(l.productId) === String(p._id))
+          .reduce((s, l) => s + l.quantity, 0)
+        if (!used || !p.trackStock) return p
+        return { ...p, stock: Math.max(0, (p.stock || 0) - used) }
+      }),
+    }))
+  }
+
+  const finishCheckout = async (payload) => {
+    const printer = readPrinterSettings()
+    const key = checkoutKey || genKey()
+    setProcessing(true)
+
+    const totals = payload.totals
     const body = {
       orderType,
       items: cart.map((l) => ({
@@ -219,41 +245,100 @@ export default function POS() {
         notes: '',
       })),
       table: orderType === 'Dine In' && table ? table : undefined,
-      discount: Number(discountRs) > 0 ? Number(discountRs) : undefined,
-      discountPercent: Number(discountPct) > 0 ? Number(discountPct) : undefined,
-      waiter,
-      printType,
+      discount: payload.discountRs > 0 ? payload.discountRs : undefined,
+      discountPercent: payload.discountPct > 0 ? payload.discountPct : undefined,
+      waiter: payload.waiter,
+      printType: 'both',
       payment: {
         method: 'cash',
-        received: Number(amountPaid) || 0,
+        received: Number(payload.amountPaid) || 0,
       },
-      idempotencyKey: checkoutKey || genKey(),
+      idempotencyKey: key,
     }
 
-    if (savedOrder) return savedOrder
+    const localOrder = {
+      _id: `local-${key}`,
+      orderNumber: online ? '…' : `OFF-${String(key).slice(-6).toUpperCase()}`,
+      channel: 'pos',
+      orderType,
+      status: 'completed',
+      customer: { name: 'Walk-in Customer', phone: '' },
+      items: cart.map((l) => ({
+        productId: l.productId,
+        name: l.name,
+        image: l.image,
+        size: l.size,
+        price: l.price,
+        quantity: l.quantity,
+        lineTotal: Math.round(l.price * l.quantity * 100) / 100,
+      })),
+      subtotal: totals.subtotal ?? previewTotals.subtotal,
+      discount: totals.discount,
+      discountPercent: payload.discountPct,
+      tax: totals.tax,
+      total: totals.total,
+      waiter: payload.waiter,
+      payment: {
+        method: 'cash',
+        status: payload.due > 0 ? 'unpaid' : 'paid',
+        received: payload.amountPaid,
+        change: payload.change,
+        due: payload.due,
+      },
+      table: body.table || '',
+      printType: 'both',
+      idempotencyKey: key,
+      completedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      offline: !navigator.onLine,
+    }
 
-    const { data } = await api.post('/pos/sales', body)
-    setSavedOrder(data)
-    return data
-  }
+    // Fix subtotal in totals from cart
+    const subtotal = cart.reduce((s, l) => s + l.price * l.quantity, 0)
+    localOrder.subtotal = Math.round(subtotal * 100) / 100
 
-  const finishAndPrint = async ({ waiter, amountPaid }, kind) => {
-    const printer = readPrinterSettings()
-    setProcessing(true)
     try {
-      const order = await persistSale({
-        waiter,
-        amountPaid,
-        printType: kind === 'bill' ? 'bill' : 'kot',
+      let order = localOrder
+      let offline = !navigator.onLine
+
+      if (!offline) {
+        try {
+          const { data } = await api.post('/pos/sales', body)
+          order = { ...data, offline: false }
+          offline = false
+          await saveLocalSale({ body, order, offline: false })
+        } catch (err) {
+          // Network failure mid-request — queue offline with same idempotency key.
+          offline = true
+          order = { ...localOrder, offline: true, orderNumber: `OFF-${String(key).slice(-6).toUpperCase()}` }
+          await saveLocalSale({ body, order, offline: true })
+          toast('Saved offline — will sync when online', { icon: '📴' })
+        }
+      } else {
+        await saveLocalSale({ body, order, offline: true })
+        toast('Saved offline — will sync when online', { icon: '📴' })
+      }
+
+      applyLocalStock(cart)
+      await cacheCatalog({
+        categories: catalog.categories,
+        products: catalog.products.map((p) => {
+          const used = cart
+            .filter((l) => String(l.productId) === String(p._id))
+            .reduce((s, l) => s + l.quantity, 0)
+          if (!used || !p.trackStock) return p
+          return { ...p, stock: Math.max(0, (p.stock || 0) - used) }
+        }),
       })
-      toast.success(`Order #${order.orderNumber} saved`)
+
+      toast.success(`Order #${order.orderNumber} confirmed`)
       setCheckoutOpen(false)
       clearCart()
+      await refreshPending()
+      if (navigator.onLine) runSync()
 
-      if (kind === 'bill' && printer.printBill !== false) {
-        setBillOrder(order)
-      } else if (kind === 'kot' && printer.printKot !== false) {
-        setKotOrder(order)
+      if (printer.printBill !== false || printer.printKot !== false) {
+        setPrintOrder(order)
       }
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Checkout failed'))
@@ -264,7 +349,11 @@ export default function POS() {
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-lex-900 text-lex-ink">
-      <PosHeader itemCount={itemCount} onOpenCart={() => cart.length > 0 && setCartOpen(true)} />
+      <PosHeader
+        itemCount={itemCount}
+        onOpenCart={() => cart.length > 0 && setCartOpen(true)}
+        online={online}
+      />
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -337,16 +426,12 @@ export default function POS() {
               <div className="h-full">
                 <OrderPanel
                   cart={cart}
-                  totals={totals}
+                  totals={previewTotals}
                   taxRate={taxRate}
                   orderType={orderType}
                   setOrderType={setOrderType}
                   table={table}
                   setTable={setTable}
-                  discountRs={discountRs}
-                  setDiscountRs={setDiscountRs}
-                  discountPct={discountPct}
-                  setDiscountPct={setDiscountPct}
                   onClear={clearCart}
                   onQty={changeQty}
                   onRemove={removeLine}
@@ -369,19 +454,13 @@ export default function POS() {
       <CheckoutModal
         open={checkoutOpen}
         onClose={() => !processing && setCheckoutOpen(false)}
-        totals={totals}
+        subtotal={previewTotals.subtotal}
+        taxRate={taxRate}
         processing={processing}
-        onConfirmBill={(payload) => finishAndPrint(payload, 'bill')}
-        onConfirmKot={(payload) => finishAndPrint(payload, 'kot')}
+        onConfirm={finishCheckout}
       />
 
-      <ReceiptModal
-        open={Boolean(billOrder)}
-        order={billOrder}
-        onClose={() => setBillOrder(null)}
-        autoPrint={readPrinterSettings().autoPrintBill !== false}
-      />
-      <KotPrint open={Boolean(kotOrder)} order={kotOrder} onDone={() => setKotOrder(null)} />
+      <CombinedPrint open={Boolean(printOrder)} order={printOrder} onDone={() => setPrintOrder(null)} />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Printer, Ticket } from 'lucide-react'
+import { Loader2, Printer } from 'lucide-react'
 import Modal from '../ui/Modal'
 import formatCurrency, { currencySymbol } from '../../utils/formatCurrency'
 
@@ -8,42 +8,62 @@ export const WAITERS = ['MAMA', 'Gulzaib', 'Armir', 'Haseeb', 'Waqar']
 export default function CheckoutModal({
   open,
   onClose,
-  totals,
+  subtotal,
+  taxRate,
   processing,
-  onConfirmBill,
-  onConfirmKot,
+  initialDiscountPct = '',
+  initialDiscountRs = '',
+  onConfirm,
 }) {
   const [waiter, setWaiter] = useState('')
   const [amountPaid, setAmountPaid] = useState('')
+  const [discountPct, setDiscountPct] = useState('')
+  const [discountRs, setDiscountRs] = useState('')
+
+  const totals = useMemo(() => {
+    const pct = Math.min(Math.max(Number(discountPct) || 0, 0), 100)
+    const fromPct = subtotal * (pct / 100)
+    const flat = Math.max(Number(discountRs) || 0, 0)
+    const discount = Math.min(fromPct + flat, subtotal)
+    const tax = (subtotal - discount) * ((Number(taxRate) || 0) / 100)
+    const total = subtotal - discount + tax
+    return {
+      subtotal: Math.round(subtotal * 100) / 100,
+      discount: Math.round(discount * 100) / 100,
+      tax: Math.round(tax * 100) / 100,
+      total: Math.round(total * 100) / 100,
+      discountPct: pct,
+      discountRs: flat,
+    }
+  }, [subtotal, discountPct, discountRs, taxRate])
 
   useEffect(() => {
     if (open) {
       setWaiter('')
-      setAmountPaid(String(totals.total || ''))
+      setDiscountPct(String(initialDiscountPct || ''))
+      setDiscountRs(String(initialDiscountRs || ''))
+      setAmountPaid('')
     }
+  }, [open, initialDiscountPct, initialDiscountRs])
+
+  useEffect(() => {
+    if (open) setAmountPaid(String(totals.total || ''))
   }, [open, totals.total])
 
   const paid = Number(amountPaid) || 0
-  const due = useMemo(() => Math.max(Math.round((totals.total - paid) * 100) / 100, 0), [totals.total, paid])
-  const change = useMemo(() => Math.max(Math.round((paid - totals.total) * 100) / 100, 0), [totals.total, paid])
+  const due = Math.max(Math.round((totals.total - paid) * 100) / 100, 0)
+  const change = Math.max(Math.round((paid - totals.total) * 100) / 100, 0)
   const canConfirm = Boolean(waiter) && !processing
 
-  const payload = () => ({
-    waiter,
-    amountPaid: paid,
-    due,
-    change,
-  })
-
   return (
-    <Modal open={open} onClose={() => !processing && onClose?.()} title="Checkout" size="md">
+    <Modal open={open} onClose={() => !processing && onClose?.()} title="Checkout – Bill & KOT" size="md">
       <div className="mb-4 rounded-2xl border border-lex-700 bg-lex-800 px-4 py-3 text-center">
         <p className="text-xs font-semibold uppercase tracking-wide text-lex-muted">Order total</p>
         <p className="text-3xl font-extrabold tabular-nums text-lex-gold">{formatCurrency(totals.total)}</p>
       </div>
 
       <p className="mb-2 text-sm font-semibold text-lex-ink">Assign waiter</p>
-      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {WAITERS.map((name) => (
           <button
             key={name}
@@ -58,6 +78,32 @@ export default function CheckoutModal({
             {name}
           </button>
         ))}
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-lex-ink">Discount (%)</label>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={discountPct}
+            onChange={(e) => setDiscountPct(e.target.value)}
+            className="lex-input font-semibold tabular-nums"
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-lex-ink">Discount (Rs.)</label>
+          <input
+            type="number"
+            min="0"
+            value={discountRs}
+            onChange={(e) => setDiscountRs(e.target.value)}
+            className="lex-input font-semibold tabular-nums"
+            placeholder="0"
+          />
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -83,31 +129,31 @@ export default function CheckoutModal({
         </div>
       </div>
 
-      {change > 0 && (
-        <p className="mt-2 text-sm font-medium text-lex-success">Change: {formatCurrency(change)}</p>
+      {change > 0 && <p className="mt-2 text-sm font-medium text-lex-success">Change: {formatCurrency(change)}</p>}
+      {totals.discount > 0 && (
+        <p className="mt-1 text-xs text-lex-muted">Discount applied: {formatCurrency(totals.discount)}</p>
       )}
       {!waiter && <p className="mt-3 text-xs font-medium text-lex-error">Select a waiter to continue.</p>}
 
-      <div className="mt-6 grid gap-2 sm:grid-cols-2">
-        <button
-          type="button"
-          disabled={!canConfirm}
-          onClick={() => onConfirmBill(payload())}
-          className="lex-btn-primary py-3 disabled:opacity-50"
-        >
-          {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-          Confirm Bill
-        </button>
-        <button
-          type="button"
-          disabled={!canConfirm}
-          onClick={() => onConfirmKot(payload())}
-          className="lex-btn-secondary py-3 disabled:opacity-50"
-        >
-          {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
-          Confirm KOT
-        </button>
-      </div>
+      <button
+        type="button"
+        disabled={!canConfirm}
+        onClick={() =>
+          onConfirm({
+            waiter,
+            amountPaid: paid,
+            due,
+            change,
+            discountPct: totals.discountPct,
+            discountRs: totals.discountRs,
+            totals,
+          })
+        }
+        className="lex-btn-primary mt-6 w-full py-3.5 text-base disabled:opacity-50"
+      >
+        {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
+        Checkout – Bill & KOT
+      </button>
     </Modal>
   )
 }
