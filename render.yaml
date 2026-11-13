@@ -1,0 +1,55 @@
+# Render blueprint for the standalone Chaska Koyla Karahi POS.
+# One web service runs the API, the POS SPA and the guest table menu (/t/<number>) from
+# the same process, so nothing here talks to the website's Next.js/Postgres stack.
+services:
+  # Existing production POS — leave untouched.
+  - type: web
+    name: chaska-koyla-karahi-pos
+    runtime: node
+    region: singapore
+    plan: 0.5c-512mb
+    rootDir: .
+    buildCommand: cd frontend && npm ci && npm run build && cd ../backend && npm ci --omit=dev
+    startCommand: node backend/src/server.js
+    healthCheckPath: /health
+    autoDeploy: false
+    disk:
+      name: menu-uploads
+      mountPath: /opt/render/project/src/backend/uploads
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+
+  # New white/dark-green POS release on a separate URL.
+  - type: web
+    name: chaska-pos-green
+    runtime: node
+    region: singapore
+    plan: 0.5c-512mb
+    rootDir: .
+    buildCommand: cd frontend && npm ci && npm run build && cd ../backend && npm ci --omit=dev
+    startCommand: node backend/src/server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: menu-uploads-green
+      mountPath: /opt/render/project/src/backend/uploads
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: POS_PIN
+        value: "12345"

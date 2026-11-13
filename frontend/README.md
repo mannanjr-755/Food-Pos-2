@@ -22,7 +22,13 @@ src/
 └── types/         # Shared type definitions / JSDoc contracts
 ```
 
-## Notes
+## Application
 
-- Feature folders map 1:1 to product domains.
-- No application logic is implemented yet — structure only.
+- Route-level screens cover the dashboard, POS, orders, inventory, menu,
+  reports, settings, sign-in, and not-found states.
+- The POS creates orders, updates inventory stock, and shares saved order data
+  with the dashboard and reports.
+- Demo data is stored in browser local storage. The frontend is not yet
+  connected to the backend API.
+- Run the development server with `npm run dev` from this directory. See the
+  repository [Getting Started guide](../README.md#getting-started) for setup.

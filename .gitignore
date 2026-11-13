@@ -30,6 +30,9 @@ Thumbs.db
 backend/uploads/*
 !backend/uploads/.gitkeep
 
+# One-off import backups hold customer names and phone numbers in plain JSON
+backend/backups/
+
 # Backend logs (keep folder, ignore contents)
 backend/logs/*
 !backend/logs/.gitkeep
